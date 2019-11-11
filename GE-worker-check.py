@@ -3,15 +3,19 @@ from socket import *
 import psutil
 from decimal import Decimal
 from psutil._common import bytes2human
+import datetime
+import time
 
-ip = ["10.2.1.1x4","10.2.1.x55","10.2.1.xx6"]
-username = "domain\user"
+ip = ["10.2.1.154","10.2.1.155","10.2.1.156"]
+username = "ge-dev\jthomas-admin"
 password = "7qAaNHewf8AP8kK#$@"
 mem = psutil.virtual_memory()
 mem_total = bytes2human(mem.total)
 mem_avail = bytes2human(mem.available)
 mem_used = bytes2human(mem.used)
 mem_free = bytes2human(mem.free)
+ts = time.time()
+st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
 for h in ip:
   try:
@@ -20,7 +24,7 @@ for h in ip:
     #print ("Connection established")
     for i in connection.Win32_service():
        if i.Caption == 'globaledit Worker':
-        print (h, i.SystemName, i.Caption, i.State, i.Status, mem_total , mem_avail, mem_used, mem_free)
+        print (st ,"-", h, i.SystemName, i.Caption,":", i.State,":", i.Status,":", "Mem_Total: " + mem_total , "Mem_Avail: " + mem_avail, "Mem_Used: " + mem_used, "Mem_Free: " + mem_free)
         #f= open('Stg-worker-check.txt', 'a+')
         #print (i , file=f)
   except wmi.x_wmi:
