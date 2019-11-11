@@ -1,14 +1,17 @@
 import wmi
 from socket import *
 import psutil
-import datetime
-import time
+from decimal import Decimal
+from psutil._common import bytes2human
 
-ip = ["10.2.1.1x4","10.2.1.155","10.2.1.x56"]
-username = "Domain\user"
+ip = ["10.2.1.1x4","10.2.1.x55","10.2.1.xx6"]
+username = "domain\user"
 password = "7qAaNHewf8AP8kK#$@"
-ts = time.time()
-st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+mem = psutil.virtual_memory()
+mem_total = bytes2human(mem.total)
+mem_avail = bytes2human(mem.available)
+mem_used = bytes2human(mem.used)
+mem_free = bytes2human(mem.free)
 
 for h in ip:
   try:
@@ -17,8 +20,8 @@ for h in ip:
     #print ("Connection established")
     for i in connection.Win32_service():
        if i.Caption == 'globaledit Worker':
-        print (st ,"-", h , i.SystemName, i.Caption,":", i.State,":", i.Status,":" ,i.ProcessId)
-        f= open('Stg-worker-check.txt', 'a+')
-        print (st , i , file=f)
+        print (h, i.SystemName, i.Caption, i.State, i.Status, mem_total , mem_avail, mem_used, mem_free)
+        #f= open('Stg-worker-check.txt', 'a+')
+        #print (i , file=f)
   except wmi.x_wmi:
     print ("Your Username and Password of "+getfqdn(ip)+" are wrong.")
