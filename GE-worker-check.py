@@ -24,8 +24,8 @@ for h in ip:
     #print ("Connection established")
     for i in connection.Win32_service():
        if i.Caption == 'globaledit Worker':
-        print (st ,"-", h, i.SystemName, i.Caption,":", i.State,":", i.Status,":", "Mem_Total: " + mem_total , "Mem_Avail: " + mem_avail, "Mem_Used: " + mem_used, "Mem_Free: " + mem_free)
-        #f= open('Stg-worker-check.txt', 'a+')
-        #print (i , file=f)
+        Final_out = print (st ,"-", h, i.SystemName, i.Caption,":", i.State,"->", i.Status,":", "Mem_Total: " + mem_total , "Mem_Avail: " + mem_avail, "Mem_Used: " + mem_used, "Mem_Free: " + mem_free)
+        f= open('Stg-worker-check.txt', 'a+')
+        print (final_out , file=f)
   except wmi.x_wmi:
     print ("Your Username and Password of "+getfqdn(ip)+" are wrong.")
