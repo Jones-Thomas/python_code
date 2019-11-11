@@ -4,8 +4,8 @@ import psutil
 import datetime
 import time
 
-ip = ["10.2.1.154","10.2.1.155","10.2.1.156"]
-username = "ge-dev\jthomas-admin"
+ip = ["10.2.1.1x4","10.2.1.155","10.2.1.x56"]
+username = "Domain\user"
 password = "7qAaNHewf8AP8kK#$@"
 ts = time.time()
 st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
