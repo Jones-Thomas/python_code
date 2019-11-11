@@ -1,3 +1,4 @@
+python -m pip install --upgrade pip
 wmi
 pypiwin32
 psutil
