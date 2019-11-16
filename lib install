@@ -1,4 +1,5 @@
 python -m pip install --upgrade pip
-wmi
-pypiwin32
-psutil
+pip install wmi
+pip install pypiwin32
+pip install psutil
+pip install pypyodbc 
