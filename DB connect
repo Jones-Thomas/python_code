@@ -1,0 +1,13 @@
+import pypyodbc
+
+conn = pypyodbc.connect(DRIVER='{SQL Server}',
+                        Server='Server_name',
+                        Database='DataBase_Name',
+                        UID='sa',
+                        PWD='SQL h@$ N0 =',
+                        Trusted_Connection='no')
+cursor = conn.cursor()
+cursor.execute(
+    'Select TOP 200 * from JobBatch jb  order by jb.CreatedOn desc')
+for row in cursor:
+    print('row = %r' % (row,))
