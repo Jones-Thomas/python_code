@@ -1,3 +1,4 @@
+#To install use this cmd: pip install -r requirements.txt
 aiohttp==3.6.2
 altgraph==0.17
 astroid==2.4.0
