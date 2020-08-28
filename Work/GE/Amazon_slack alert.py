@@ -7,7 +7,7 @@ from slacker import Slacker
 
 
 slack_token = Slacker("xoxb-2328284242-1132712822385-9gKknBlgxJcvWUT84xea67qW")
-db = mysql.connect(SERVER='PRD-DB-02.ics.com', Database='GE', DRIVER='{SQL Server}', UID='sa', PWD='SQL h@$ N0 =',Trusted_Connection='no')
+db = mysql.connect(SERVER={HOST}, Database={DATABASE}, DRIVER='{SQL Server}', UID='sa', PWD={PASSWORD},Trusted_Connection='no')
 cursor = db.cursor()
 
 sqlquery1= """
