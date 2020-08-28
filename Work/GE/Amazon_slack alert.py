@@ -1,47 +1,72 @@
-import sys
+import sys, json, time, logging
 import pyodbc as mysql
 import pandas as pd
 import numpy as np
 from slacker import Slacker 
-import json
-import time
-import logging
 
 
-slack_token = Slacker("xoxb-2328284242-1132712822385-dqWd8mgNI1pAsdb3aRcKW5hl")
+
+slack_token = Slacker("xoxb-2328284242-1132712822385-9gKknBlgxJcvWUT84xea67qW")
 db = mysql.connect(SERVER='PRD-DB-02.ics.com', Database='GE', DRIVER='{SQL Server}', UID='sa', PWD='SQL h@$ N0 =',Trusted_Connection='no')
 cursor = db.cursor()
 
 sqlquery1= """
-DECLARE @today date = GETDATE();
-select d.DownloadedBy as Username,d.Filename,d.FileByteCount,d.Time as CreatedOn from vw_DownloadedFiles d
-inner join Account a on a.AccountID=d.AccountID
-where d.AccountID=3389 and d.Time >= @today order by d.Time asc;
+SET NOCOUNT ON
+declare @AccID int =3389;
+Declare @NoOfDays int = 2;
+with CTE as(
+select distinct vd.DownloadID,vd.DownloadedBy as UserName,vd.Filename,vd.FileByteCount,vd.Time as CreatedOn,[dbo].[udf_GetFolderPath](jf.JobFolderID) as[FolderPath] From vw_DownloadedFiles vd 
+inner join Download d on vd.DownloadID=d.DownloadID
+inner join FilePackage fp on d.FilePackageID=fp.FilePackageID
+inner join FilePackageAssets fpa on fp.FilePackageID=fpa.FilePackageID
+inner join Asset a on fpa.AssetID=a.AssetID
+left join JobFolder jf on a.JobFolderID=jf.JobFolderID
+where vd.AccountID= @AccID AND vd.Time >= DATEADD(day,- @NoOfDays, CONVERT(varchar,Getdate(),1))  AND vd.DownloadType IN ('Assets')
+union
+select distinct vd.DownloadID,vd.DownloadedBy as UserName,vd.Filename,vd.FileByteCount,vd.Time as CreatedOn,[dbo].[udf_GetFolderPath](jf.JobFolderID) as[FolderPath]
+From vw_DownloadedFiles vd 
+inner join Asset a on vd.AssetID=a.AssetID
+left join JobFolder jf on a.JobFolderID=jf.JobFolderID
+where vd.AccountID=@AccID AND vd.Time >= DATEADD(day,- @NoOfDays, CONVERT(varchar,Getdate(),1))  and vd.AssetID is NOT NULL
+union
+ select distinct vd.DownloadID,vd.DownloadedBy as UserName,vd.Filename,vd.FileByteCount,vd.Time as CreatedOn,[dbo].[udf_GetFolderPath](jf.JobFolderID) as[FolderPath] 
+ from vw_DownloadedFiles vd
+inner join Download d on d.DownloadID=vd.DownloadID
+inner join FilePackage fp on fp.FilePackageID=d.FilePackageID
+inner join LightBox lf on fp.LightboxID=lf.LightboxID
+inner join LightboxAsset lba on lba.LightboxID=lf.LightboxID
+inner join Asset a on a.AssetID=lba.AssetID
+inner join JobFolder jf on jf.JobFolderID=a.JobFolderID
+ where vd.DownloadType IN ('Lightbox (zip)','Lightbox (Aspera)','ContactSheet') AND vd.AccountID=@AccID
+And vd.Time >= DATEADD(day,-@NoOfDays, CONVERT(varchar,getdate(),1))
+)
+
+select DownloadID, UserName, FileName, FileByteCount, CreatedOn, max(FolderPath) as FolderPath,
+SUBSTRING(max(FolderPath), 1 ,
+                      case when  CHARINDEX('\\', max(FolderPath) ) = 0 then LEN(max(FolderPath)) 
+                     else CHARINDEX('\\', max(FolderPath)) -1 end) as ShowName
+from CTE
+group by DownloadID, UserName, FileName, FileByteCount, CreatedOn
 """
 df = pd.read_sql(sqlquery1,db)
 
-
-
-df_new = df.groupby(['Username'], as_index=False).agg({'FileByteCount': 'sum'})
+df_new = df.groupby(['UserName'], as_index=False).agg({'FileByteCount': 'sum'})
 df_new['FileByteCount']=(df_new['FileByteCount'] / (1024*1024*1024)).round(2)
 df_new=(df_new[df_new['FileByteCount'].values >= 10])
 df_new= df_new.reset_index(drop=True)
-username=df_new['Username'].str.strip().to_list()
+username=df_new['UserName'].str.strip().to_list()
 print(username)
 
 
-df_new1 = df[df['Username'].isin(df_new['Username'])]
+df_new1 = df[df['UserName'].isin(df_new['UserName'])]
 df_new1= df_new1.reset_index(drop=True)
 print(df_new1)
 
-    
-# mergedf= pd.merge(df_new,df_new1, on="Username")
-# print(mergedf)
-#df['Filename'], df['FileByteCount'], df['CreatedOn']
+print() 
 
-    
+
 for index, row in df_new.iterrows():
-    print(index, row['Username'],row['FileByteCount'])
+    print(index, row['UserName'],row['FileByteCount'])
     sample_list=[
 	{
 		"type": "section",
@@ -55,7 +80,7 @@ for index, row in df_new.iterrows():
 		"fields": [
             {
 				"type": "mrkdwn",
-				"text": "*UserName:* "+ str(row['Username'])
+				"text": "*UserName:* "+ str(row['UserName'])
 			},
 			{
 				"type": "mrkdwn",
@@ -64,108 +89,10 @@ for index, row in df_new.iterrows():
 		]
 	}
     ]
+    #slack_token.chat.post_message('G0141PSFBL4', blocks=json.dumps(sample_list));
     slack_token.chat.post_message('#z-download-report', blocks=json.dumps(sample_list));
 
 
-#df.to_csv('./dowload_report.csv', index=False)
+df.to_csv('./dowload_report.csv', index=False, mode='a')
 logging.basicConfig(filename='./app.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 print("Message sent!")
-
-
-
-
-
-
-
-
-
-
-
-# import sys
-# import pyodbc as mysql
-# import pandas as pd
-# import numpy as np
-# from slacker import Slacker 
-# import json
-# import time
-# import logging
-
-# slack_token = Slacker("xoxb-2328284242-1132712822385-OCe1fGGiJbWQ0G89fdjIuIPP")
-# db = mysql.connect(SERVER='PRD-DB-02.ics.com', Database='GE', DRIVER='{SQL Server}', UID='sa', PWD='SQL h@$ N0 =',Trusted_Connection='no')
-# cursor = db.cursor()
-
-# sqlquery1= """
-# select TOP 2  f.FilepackageID, u.UserID, CONCAT( u.FirstName, ' ' , u.LastName) as FullName, f.CreatedOn,f.Name, f.FileByteCount / (1024*1024*1024) as SizeInGB from FilePackage f
-# inner join [dbo].[user] u on u.USerID = f.UserID
-# inner join FilePackageAssets fa on fa.FilePackageID = f.FilePackageID
-# inner join Asset a on a.AssetID = fa.AssetID
-# where f.CreatedOn >= DATEADD(day,-1, GETDATE()) AND u.AccountID = 3389 AND f.FileByteCount >= '10737418240' 
-# Group by f.FilepackageID, u.UserID, u.Firstname, u.Lastname,f.name, f.Createdon, f.FileByteCount order by f.CreatedOn asc
-# """
-# df = pd.read_sql(sqlquery1,db)
-
-# for index, row in df.iterrows():
-#     print(index, row['UserID'],row['FullName'],row['CreatedOn'],row['Name'],row['SizeInGB'])
-#     sample_list=[
-# 	{
-# 		"type": "section",
-# 		"text": {
-# 			"type": "mrkdwn",
-# 			"text": ">`ALERT:` *Amazon Download file size greater than 10_GB* "
-# 		}
-# 	},
-# 	{
-# 		"type": "section",
-# 		"fields": [
-#             # {
-# 			# 	"type": "mrkdwn",
-# 			# 	"text": "*User-ID:*\n"+ str(row['UserID'])
-# 			# },
-# 			# {
-# 			# 	"type": "mrkdwn",
-# 			# 	"text": "*User-FullName:*\n"+ str(row['FullName'])
-# 			# },
-# 			# {
-# 			# 	"type": "mrkdwn",
-# 			# 	"text": "*CreatedOn:*\n"+ str(row['CreatedOn'])[:19]
-# 			# },
-# 			# {
-# 			# 	"type": "mrkdwn",
-# 			# 	"text": "*DownloadName*\n"+ str(row['Name'])
-# 			# },
-# 			# {
-# 			# 	"type": "mrkdwn",
-# 			# 	"text": "*SizeInGB:*\n"+ str(row['SizeInGB'])
-# 			# },
-# 			{
-# 				"type": "mrkdwn",
-# 				"text": "*FilePackage-ID:* " + str(row['FilepackageID'])
-# 			},
-# 			{
-# 				"type": "mrkdwn",
-# 				"text": "*User-FullName:* "+ str(row['FullName'])
-# 			},
-# 			{
-# 				"type": "mrkdwn",
-# 				"text": "*CreatedOn:* "+ str(row['CreatedOn'])[:19]
-# 			},
-# 			{
-# 				"type": "mrkdwn",
-# 				"text": "*Download Name:* "+ str(row['Name'])
-# 			},
-# 			{
-# 				"type": "mrkdwn",
-# 				"text": "*Download SizeInGB:* "+ str(row['SizeInGB'])
-# 			}
-# 		]
-# 	},
-# 			{
-# 			"type": "divider"
-# 			}
-	
-#     ]
-#     slack_token.chat.post_message('#z-download-report', blocks=json.dumps(sample_list));
-
-# df.to_csv('./dowload_report.csv', index=False)
-# logging.basicConfig(filename='./app.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
-# print("Message sent!")
